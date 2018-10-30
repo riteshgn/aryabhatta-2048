@@ -43,19 +43,14 @@ AIProxyGameManager.prototype.setup = function () {
     console.log('Setting up the game...');
     this.aiCommSystem.game.registerNewMoveAction(this.aiActionHandlers.moveTiles);
     GameManager.prototype.setup.call(this);
-    this.aiCommSystem.game.requestNextMove();
+    this.aiCommSystem.game.requestNextMove(this.serialize());
     console.log('Setup complete...');
 };
 
 // Move tiles on the grid in the specified direction
 AIProxyGameManager.prototype.move = function (direction) {
     GameManager.prototype.move.call(this, direction);
-
-    // TODO: There should not be an if block! Either the game state should be sent always
-    // or it should be sent on demnad. This is done now because the AI is dumb.
-    // Moreover movesAvailable() internally calls tileMatchesAvailable() which is an expensive check
-    if (this.movesAvailable())
-        this.aiCommSystem.game.updateGameState(this.serialize());
+    this.aiCommSystem.game.requestNextMove(this.serialize());
 };
 
 /*AIProxyGameManager.prototype.findFarthestPosition = function (cell, vector) {

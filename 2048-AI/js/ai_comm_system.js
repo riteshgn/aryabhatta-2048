@@ -48,7 +48,7 @@ function AICommSystem() {
         isReady: () => Boolean(gameSocket),
 
         game: {
-            requestNextMove: () => self.requestNextMove.call(self, gameSocket),
+            requestNextMove: (state) => self.requestNextMove.call(self, gameSocket, state),
             updateGameState: (state) => self.updateGameState.call(self, gameSocket, state),
             registerNewMoveAction: (action) => self.registerActions.call(self, gameActions, AI_ACTION_KEYS.MY_MOVE, action)
         }
@@ -89,9 +89,9 @@ AICommSystem.prototype.executeAction = function(actions, data) {
 /**
  * Sends request to play the next move
  */
-AICommSystem.prototype.requestNextMove = function(socket) {
+AICommSystem.prototype.requestNextMove = function(socket, state) {
     console.log('Requesting AI for next move...');
-    socket.emit('message', {key: 'play'});
+    socket.emit('message', {key: 'play', state});
 }
 
 /**
