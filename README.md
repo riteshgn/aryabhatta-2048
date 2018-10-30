@@ -1,2 +1,2 @@
-# 2048-AI
-Teach an AI to play 2048
+# Aryabhatta-2048
+Teach an Aryabhatta to play 2048
