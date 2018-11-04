@@ -4,10 +4,10 @@ from .message_processor_game import GameMessages
 
 class GameNamespace(socketio.AsyncNamespace):
 
-    def __init__(self, namespace):
+    def __init__(self, namespace, engine):
         super(GameNamespace, self).__init__(namespace)
         self._namespace = namespace
-        self._game_messages = GameMessages()
+        self._game_messages = GameMessages(engine)
 
     def on_connect(self, sid, environ):
         print('client connected to game namespace ', sid)
@@ -16,7 +16,7 @@ class GameNamespace(socketio.AsyncNamespace):
         print('client disconnected from game namespace ', sid)
 
     async def on_message(self, sid, data):
-        result = self._game_messages.handle(data)
+        result = await self._game_messages.handle(data)
 
         if result.get('respond', False):
             # when room=sid, message will be emitted back to only that client
