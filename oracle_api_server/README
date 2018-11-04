@@ -1,0 +1,4 @@
+The API server exposes the core of 2048 as a HTTP REST API service. More specifically, it implements Oracle functions which can be used by the AI client.
+
+Care has been taken to make minimalistic changes to the core of the game and any changes have been documented in the respective modules.
+One default change to all modules is converting them to the node modules format i.e. expose each using 'module.exports'.
