@@ -12,10 +12,6 @@
  *         - registerNewMoveAction(action) -> register the callback function which must be
  *                                            triggered when the AI makes a move
  *
- *     2. As the namespace 'oracle'
- *         Here the game engine will expose the game's core which can be used by the AI
- *         to figure out its next move
- *         - To be implemented -
  */
 
 const AI_SERVER_ADDRESS = 'http://localhost:8080';
@@ -24,7 +20,7 @@ const AI_ACTION_KEYS = {
     // AI provides a direction to move the tiles
     // Format of data object {key: 'my_move', choice: <direction>}
     // possible values for direction: 'UP', 'RIGHT', 'DOWN', 'LEFT'
-    MY_MOVE: 'my_move'
+    MY_MOVE: 'game_my_move'
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -32,59 +28,24 @@ const AI_ACTION_KEYS = {
 function AICommSystem() {
     const self = this;
 
-    // stores callbacks for the different actions which can be performed by the AI
-    // see AI_ACTION_KEYS for more definitions
-    const gameActions = {};
+    self._aiActionHandlers = new AIActionHanders;
 
-    // setup the socket chnnale on which the AI will play the game
+    // setup the socket channel on which the AI will play the game
     // also register a listener for messages sent by the AI
-    const gameSocket = self.setupChannel.call(self, 'game');
-    gameSocket.on('message', (data) => {
-        console.log(`Recieved data: ${JSON.stringify(data)}`);
-        self.executeAction.call(self, gameActions, data);
-    });
+    const gameSocket = self._setupChannel.call(self, 'game');
+    self._prepareGameActions.call(self, gameSocket);
 
     return {
         isReady: () => Boolean(gameSocket),
 
         game: {
             requestNextMove: (state) => self.requestNextMove.call(self, gameSocket, state),
-            updateGameState: (state) => self.updateGameState.call(self, gameSocket, state),
-            registerNewMoveAction: (action) => self.registerActions.call(self, gameActions, AI_ACTION_KEYS.MY_MOVE, action)
+            updateGameState: (state) => self.updateGameState.call(self, gameSocket, state)
         }
     }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * Register's an action callback
- */
-AICommSystem.prototype.registerActions = function(actions, key, action) {
-    if (!actions[key]) {
-        actions[key] = [];
-    }
-
-    console.log(`Registering action for '${key}'`);
-    actions[key].push(action);
-}
-
-/**
- * Executes registered callback(s)
- */
-AICommSystem.prototype.executeAction = function(actions, data) {
-    if (!data.key) {
-        console.log('Received data does not have a key. Cannot map to a handler!');
-        return;
-    }
-
-    if (!actions[data.key]) {
-        console.log(`No actions registered for key: ${data.key}!`);
-        return;
-    }
-
-    actions[data.key].forEach(handle => handle(data));
-}
 
 /**
  * Sends request to play the next move
@@ -95,19 +56,36 @@ AICommSystem.prototype.requestNextMove = function(socket, state) {
 }
 
 /**
- * Setup socket communication between AI server and the game
- */
-AICommSystem.prototype.setupChannel = function(namespace) {
-    console.log(`Connecting to AI server as ${namespace}...`);
-    const socket = io(`${AI_SERVER_ADDRESS}/${namespace}`);
-    console.log('Connected successfully...');
-    return socket;
-}
-
-/**
  * Send's the serialization of current game state to the AI server
  */
 AICommSystem.prototype.updateGameState = function(socket, state) {
     console.log('Updating AI with game state...');
     socket.emit('message', {key: 'state', state});
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Configure's the actions to be performed when the AI sends a message
+ * to the 'game' namespace
+ */
+AICommSystem.prototype._prepareGameActions = function(socket) {
+    const self = this;
+
+    socket.on('message', (data) => {
+        console.log(`Recieved game data: ${JSON.stringify(data)}`);
+        if (data.key === AI_ACTION_KEYS.MY_MOVE) {
+            self._aiActionHandlers.moveTiles(data);
+        }
+    });
+}
+
+/**
+ * Setup socket communication between AI server and the game
+ */
+AICommSystem.prototype._setupChannel = function(namespace) {
+    console.log(`Connecting to AI server as ${namespace}...`);
+    const socket = io(`${AI_SERVER_ADDRESS}/${namespace}`);
+    console.log('Connected successfully...');
+    return socket;
 }

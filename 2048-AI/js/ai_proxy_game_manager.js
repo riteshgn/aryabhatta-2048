@@ -13,9 +13,7 @@
  */
 
 function AIProxyGameManager(size, InputManager, Actuator, StorageManager) {
-    this.aiCommSystem     = new AICommSystem;
-    this.aiActionHandlers = new AIActionHanders;
-
+    this.aiCommSystem = new AICommSystem;
     GameManager.call(this, size, InputManager, Actuator, StorageManager);
 }
 
@@ -41,7 +39,6 @@ AIProxyGameManager.prototype = Object.create(GameManager.prototype);
 // Set up the game
 AIProxyGameManager.prototype.setup = function () {
     console.log('Setting up the game...');
-    this.aiCommSystem.game.registerNewMoveAction(this.aiActionHandlers.moveTiles);
     GameManager.prototype.setup.call(this);
     this.aiCommSystem.game.requestNextMove(this.serialize());
     console.log('Setup complete...');
