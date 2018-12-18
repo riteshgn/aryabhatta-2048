@@ -15,7 +15,7 @@ MOVE_CHOICES = {
 class RandomMoves(AIEngine):
 
     async def next_move(self, state):
-        cells = await self._oracle.available_cells(state)
+        cells = await self._oracle.empty_cells(state)
         print('available cells: ', cells)
 
         selected_move = MOVE_CHOICES[random.randint(0, 3)]

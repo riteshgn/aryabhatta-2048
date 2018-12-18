@@ -1,106 +1,51 @@
 'use strict';
 
-const restify = require('restify');
+const cluster = require('cluster');
+const numCPUs = require('os').cpus().length;
 
-const GameManager = require('./game_manager');
-const FakeInputManager = require('./fake_input_manager');
-const FakeActuator = require('./fake_actuator');
-const LocalStorageManager = require('./local_storage_manager');
+if (cluster.isMaster) {
+    console.log(`Master ${process.pid} is running`);
 
-const MOVE_CHOICES = {
-    UP: 0,
-    RIGHT: 1,
-    DOWN: 2,
-    LEFT: 3
-}
-
-
-const gm = new GameManager(4, FakeInputManager, FakeActuator, LocalStorageManager);
-
-const server = restify.createServer();
-server.use(restify.plugins.bodyParser());
-server.post('/oracle/play', play);
-server.post('/oracle/available_cells', availableCells);
-
-server.listen(18080, function() {
-    console.log('%s listening at %s', server.name, server.url);
-});
-
-
-///////////////////////////////////////////////////////////////////////////////////
-
-function availableCells(req, res, next) {
-    gm.setState(req.body.state);
-    res.send(200, gm.grid.availableCells());
-    next();
-}
-
-function play(req, res, next) {
-    gm.setState(req.body.state);
-    // console.log(`==> before`);
-    // printGrid(gm.serialize().grid.cells);
-
-    gm.move(MOVE_CHOICES[req.body.choice], false);
-    // console.log(`==> after (direction: ${req.body.choice})`);
-    // printGrid(gm.serialize().grid.cells);
-
-    res.send(200, {state: gm.serialize()});
-    next();
-}
-
-///////////////////////////////////////////////////////////////////////////////////
-
-function printGrid(grid, digitsInMaxScore=4) {
-    const gridTranspose = _transpose(grid);
-    const gridToPrint = _printableGrid(gridTranspose, digitsInMaxScore);
-    const border = _printableBorder(digitsInMaxScore);
-    const cell_separator = '|';
-
-    console.log('');
-    console.log(border);
-    gridToPrint.forEach(row => {
-        console.log(`${cell_separator}${row}${cell_separator}`);
-        console.log(border);
-    });
-    console.log('');
-}
-
-///////////////////////////////////////////////////////////////////////////////////
-
-function _transpose(arr) {
-    const arrTranspose = []
-    for(let i=0; i<arr[0].length; i++) {
-        const innerArr = [];
-        for(let j=0; j<arr.length; j++) {
-            innerArr.push(arr[j][i]);
-        }
-        arrTranspose.push(innerArr);
+    for (let i=0; i<numCPUs; i++) {
+        cluster.fork();
     }
-    return arrTranspose;
-}
 
-function _printableGrid(grid, digitsInMaxScore) {
-    const totalCharsWithSpacing = digitsInMaxScore + 2;
-    return grid.map(row => {
-        const printableCells = row.map(cell => {
-            let cellValue = Array(totalCharsWithSpacing).fill(' ').join('');
-
-            if (cell) {
-                const zeros = Array(digitsInMaxScore).fill(0).join('');
-                cellValue = ` ${(zeros + cell.value).slice(-1 * digitsInMaxScore)} `;
-            }
-
-            return cellValue;
-        });
-
-        return printableCells.join('|');
+    cluster.on('exit', (worker) => {
+        console.log(`worker ${worker.process.pid} died`);
     });
-}
+} else {
 
-function _printableBorder(digitsInMaxScore) {
-    const totalCharsWithSpacing = digitsInMaxScore + 2;
-    const dashes = Array(digitsInMaxScore).fill(
-        Array(totalCharsWithSpacing).fill('-').join('')
-    ).join(' ');
-    return ` ${dashes} `;
+    const restify = require('restify');
+
+    const oracle = require('./ai_oracle');
+
+    const server = restify.createServer();
+    server.use(restify.plugins.bodyParser());
+    server.post('/oracle/play', play);
+    server.post('/oracle/empty_cells', emptyCells);
+    server.post('/oracle/available_moves', availableMoves);
+
+    server.listen(18080, function() {
+        console.log('[pid: %s] %s listening at %s', process.pid, server.name, server.url);
+    });
+
+    ///////////////////////////////////////////////////////////////////////////////////
+
+    function emptyCells(req, res, next) {
+        res.send(200, {positions: oracle.emptyCells(req.body.state)});
+        next();
+    }
+
+    function availableMoves(req, res, next) {
+        const moves = oracle.availableMoves(req.body.state);
+        res.send(200, {moves});
+        next();
+    }
+
+    function play(req, res, next) {
+        const state = oracle.play(req.body.state, req.body.choice);
+        res.send(200, {state});
+        next();
+    }
+
 }
